@@ -1,10 +1,9 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import logging
 import logging.handlers
 import sqlite3
 from time import sleep
-from datetime import date, datetime
+from datetime import datetime
 
 LOG_FILENAME = "logserialParser.log"
 LOG_LEVEL = logging.INFO # Could be e.g. "DEBUG" or "WARNING"
@@ -48,7 +47,7 @@ def selectPending():
 	try:
 		db = sqlite3.connect(DB)
 		cur=db.cursor()
-		cur.execute('''select ts,msgtype,dev,msg from logserial where stat is null ''')
+		cur.execute('''select ts,devtype,dev,msg from logserial where stat is null ''')
 		rows=cur.fetchall()
 	except sqlite3.Error, e:
 		print "error %s:" % e.args[0]
@@ -64,27 +63,84 @@ def processPending():
 	result = False
 	if rowsToProcess:
 		print 'processPending: found pending'
-		for rowToProcess in rowsToProcess:
-			print rowToProcess
-			ts=rowToProcess[0]
-			msgtype=rowToProcess[1]
-			dev=rowToProcess[2]
-			msg=rowToProcess[3]
-			
-			if (msgtype=='err'):
-				result = handleERR(ts,msgtype,dev,msg)
-			elif (msgtype=='msg'):
-				result = handleMSG(ts,msgtype,dev,msg)
-			elif (msgtype=='rep'):
-				result = handleREP(ts,msgtype,dev,msg)
-			else:
-				result = False
-			if result:
-				procStat='C'
-			else:
-				procStat='E'
-			updateStatus(ts,msgtype,dev,procStat)
-		
+        for rowToProcess in rowsToProcess:
+            print rowToProcess
+            ts=rowToProcess[0]
+            devType=rowToProcess[1]
+            addr=rowToProcess[2]
+            rawMsg=rowToProcess[3]
+            (msgType,pin,val,msgTs)=parseMsg(rawMsg)
+            if (msgType=='err'):
+                result = handleERR(ts,msgType,addr,rawMsg)
+            elif (msgType=='info'):
+                result = handleMSG(ts,msgType,addr,rawMsg)
+            elif (msgType=='rep'):
+                msgTs=StrToDate(msgTs)
+                result = handleREP(ts,msgType,addr,pin,val,msgTs)
+            else:
+                result = False
+            if result:
+                procStat='C'
+            else:
+                procStat='E'
+            updateStatus(ts,devType,addr,procStat)
+
+def StrToDate(Str):
+    yyyy=Str[0:4]
+    mm=Str[4:6]
+    dd=Str[6:8]
+    HH=Str[8:10]
+    MI=Str[10:12]
+    SS=Str[12:14]
+    SSSSS=Str[14:20]
+    return yyyy+'-'+mm+'-'+dd+' '+HH+':'+MI+':'+SS+'.'+SSSSS
+
+def parseMsg(msg):
+    print 'In parseMsg'
+    msgType=None # rep -for replay, info - for pushed messages, err - for error messages
+    pinType=None
+    pinNumber=None
+    val=None
+    ts=None
+    (pin,val,ts) = msg.split('=')
+    if (pin=='ER'):
+        msgType='err'
+        pin=None
+    else:
+        if (ts==''):
+            msgType='info'
+            ts=None
+        else:
+            msgType='rep'
+    return msgType,pin,val,ts
+
+def updateCmdStatus(ts,stat):
+    print 'In updateCmdStatus'
+    ###################################
+    #Posible statuses of commands are:#
+    #    P - Pending for execution     #
+    #   R - Waiting replay            #
+    #    S - Sucsssrully completed     #
+    #    E - Error                     #
+    ###################################
+    db = None
+    result=True
+    try:
+        db = sqlite3.connect(DB)
+        cur=db.cursor()
+        print ('''update cmdjrnl set stat=%s, statts=%s where ts=%s''',(stat,datetime.now(),ts,))
+        cur.execute('''update cmdjrnl set stat=?, statts=? where ts=?''',(stat,datetime.now(),ts,))
+        db.commit()
+    except sqlite3.Error, e:
+        print "Error: %s" % e.args[0]
+        result=False
+    except Exception, e:
+        print repr(e)
+        result=False
+    finally:
+        if db:
+            db.close()
+        return result
 
 def handleERR(ts,msgtype,dev,msg):
 	print ts, msgtype, dev, msg
@@ -94,88 +150,71 @@ def handleMSG(ts,msgtype, dev,msg):
 	print ts, msgtype, dev, msg
 	return True
 
-def handleREP(ts,msgtype, dev,msg):
-	cmd=msg[0-3]
-	result = False
-	if (cmd=='STRT'):
-		print 'Device '+dev+'started at '+ts
-	elif (cmd=='DITM'):
-		result = setDITM(dev,msg)
-	elif (cmd=='HWTM'):
-		result = setWHTM(dev,msg)
-	elif (cmd=='APIN'):
-		pin=msg[4]
-		value=int(msg[5:])
-		result = setAPIN(dev,pin,value)
-	elif (cmd=='DPIN'):
-		pin=msg[4]
-		value=int(msg[5:])
-		result = setDPIN(dev,pin,value)
-	else:
-		print 'Unhandled command'
-	return result
+def handleREP(ts,msgtype, dev,pin,val,msgTs):
+    print 'In handleRep'
+    result = False
+    if (pin[0]=='A' or pin[0] == 'D'):
+        if(setPINvalue(dev,pin,val)):
+            result = updateCmdStatus(msgTs,'S')
+    else:
+        if(setPINvalue(dev,'V',None,pin,val)):
+            result = updateCmdStatus(msgTs,'S')
+    return result
 
 
-def setDPIN(endpoint,pin,stat):
-	vname = None
-	vval = None
-	return updateEndpoints(endpoint,'D',pin,stat,vname,vval)
-
-def setAPIN(endpoint,pin,stat):
-	vname = None
-	vval = None
-	return updateEndpoints(endpoint,'A',pin,stat,vname,vval)
-
-def setWHTM(endpoint,time):
-	pin = None
-	stat = None
-	return updateEndpoints(endpoint,'V',3,stat,time)
-
-def setDITM(endpoint,time):
-        pin = None
-        stat = None
-        return updateEndpoints(endpoint,'V',4,stat,time)
-
-
-def updateEndpoints(endpoint,pintype,pinnumber,state,vname,vval):
-	db = None
-	result = True
-	try:
-		db = sqlite3.connect(DB)
-		cur = db.cursor()
-		cur.execute('''update menu set endpoint=?,pintype=?,pinnumber=?, state=?, vname=?, vval=?''', (endpoint,pintype,pinnumber,state,vname,vval))
-		db.commit()
-	except sqlite3.Error, e:
+def updateMenu(endpoint,pintype,pinnumber,state,vname,vval):
+    print 'In updateMenu'
+    db = None
+    result = True
+    try:
+        db = sqlite3.connect(DB)
+        cur = db.cursor()
+        endpoint = endpoint+'%' # To jest do poprawy. Należy sprawdzić dlaczego adress nie jest kompletny
+        if (vname and vval):
+            print ('''update menu set state=%s,vval=%s where endpoint=%s and pintype=%s and pinnumber=%s and vname=%s''', (state,vval,endpoint,pintype,pinnumber,vname))
+            cur.execute('''update menu set state=?,vval=? where endpoint=? and pintype=? and pinnumber=? and vname=?''', (state,vval,endpoint,pintype,pinnumber,vname))
+        else:
+            print ('update menu set state=%s where endpoint in (select endpoint from endpointaddr where address like %s) and pintype=%s and pinnumber=%s' % (state,endpoint,pintype,pinnumber))
+            cur.execute('''update menu set state=? where endpoint in (select endpoint from endpointaddr where address like ?) and pintype=? and pinnumber=?''', (state,endpoint,pintype,pinnumber)) 
+        db.commit()
+    except sqlite3.Error, e:
                 print "Error: %s" % e.args[0]
                 result=False
-        except Exception, e:
+    except Exception, e:
                 print repr(e)
                 result=False
-        finally:
+    finally:
                 if db:
                         db.close()
                 return result
 
+def setPINvalue(endpoint,pin,stat=None,vname=None,vval=None):
+    print 'In setPINvalue'
+    pinType=pin[0]
+    pinNumber=pin[1:]
+    return updateMenu(endpoint,pinType,pinNumber,stat,vname,vval)
+
+
 def updateStatus(ts,msgtype,dev,stat):
-	db = None
-	result = True
-	try:
-		db = sqlite3.connect(DB)
-		cur = db.cursor()
-		cur.execute('''update logserial set stat=? where ts=? and msgtype=? and dev=?''',(stat,ts,msgtype,dev))
-		db.commit()
-	except sqlite3.Error, e:
+    db = None
+    result = True
+    try:
+        db = sqlite3.connect(DB)
+        cur = db.cursor()
+        cur.execute('''update logserial set stat=? where ts=? and devtype=? and dev=?''',(stat,ts,msgtype,dev))
+        db.commit()
+    except sqlite3.Error, e:
                 print "Error: %s" % e.args[0]
                 result=False
-        except Exception, e:
+    except Exception, e:
                 print repr(e)
                 result=False
-        finally:
+    finally:
                 if db:
                         db.close()
                 return result
 
 while True:
-	processPending()	
-	sleep(0.5)
+    processPending()    
+    sleep(0.5)
 
