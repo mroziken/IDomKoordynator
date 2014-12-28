@@ -8,8 +8,7 @@ import time
 import datetime
 import sys
 from collections import namedtuple
-from ipalib.output import result
-from gtk._gtk import MenuItem
+
 
 
 LOG_FILENAME = '/tmp/listener.log'
@@ -98,8 +97,12 @@ class check_cmd_proc:
 class lights_on:        
     def GET(self):
         return_obj=returnObject()
-        cmd='\x17\x01'
-        ret=cmdjrnlWrite(cmd)
+        cmd='1701'
+        dev='mxm1'
+        endpointDet=getEndpointDet(dev)
+        devtype=endpointDet[0]
+        address=endpointDet[1]
+        ret=cmdjrnlWrite(devtype,address,cmd)
         if ret:
             return_obj.setTs(ret)
         else:
@@ -109,8 +112,12 @@ class lights_on:
 class lights_off:
     def GET(self):
         return_obj=returnObject()
-        cmd="\x17\x00"
-        ret=cmdjrnlWrite(cmd)
+        cmd="1700"
+        dev='mxm1'
+        endpointDet=getEndpointDet(dev)
+        devtype=endpointDet[0]
+        address=endpointDet[1]
+        ret=cmdjrnlWrite(devtype,address,cmd)
         if ret:
             return_obj.setTs(ret)
         else:
@@ -121,7 +128,11 @@ class digital_read:
     def GET(self):
         return_obj=returnObject()
         cmd="\x10"
-        result=cmdjrnlWrite(cmd)
+        dev='mxm1'
+        endpointDet=getEndpointDet(dev)
+        devtype=endpointDet[0]
+        address=endpointDet[1]
+        result=cmdjrnlWrite(devtype,address,cmd)
         print 'result',result
         #return_obj['menu']=objects_list
         #return_obj['result']=result
@@ -191,10 +202,28 @@ def cmdjrnlCheck(tsStr):
             db.close()
         return result
         
+def getEndpointDet(endpoint):
+    db = None
+    row = None
+    try:
+        print 'In getEndpointDet: '+endpoint
+        db = sqlite3.connect(DB)
+        db.row_factory = namedtuple_factory
+        c=db.cursor()
+        c.execute('''SELECT type, address from endpointaddr where endpoint=?''',(endpoint,))
+        row=c.fetchone()
+    except sqlite3.Error, e:
+        print "Error %s:" % e.args[0]
+    except:
+        print "Unexpected error:", sys.exc_info()
+    
+    finally:
+        if db:
+            db.close()
+        return row
 
-def cmdjrnlWrite(cmd):
+def cmdjrnlWrite(devtype,address,cmd):
     print 'Writing to cmdjrnl:%s' % cmd
-    dev='1.1.1.1'
     stat='P'
     result=''
 
@@ -202,7 +231,7 @@ def cmdjrnlWrite(cmd):
         db = sqlite3.connect(DB)
         c = db.cursor()
         ts=datetime.datetime.now().isoformat(' ')
-        c.execute('''INSERT INTO cmdjrnl(ts,dev,cmd,stat) VALUES(?,?,?,?)''',(ts,dev,cmd,stat))
+        c.execute('''INSERT INTO cmdjrnl(ts,devtype,address,cmd,stat) VALUES(?,?,?,?,?)''',(ts,devtype,address,cmd,stat))
         db.commit()
         result=ts
         
