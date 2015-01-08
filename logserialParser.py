@@ -4,7 +4,7 @@ import logging.handlers
 import sqlite3
 from time import sleep
 from datetime import datetime
-
+#Ala ma kota
 
 LOG_FILENAME = "logserialParser.log"
 LOG_LEVEL = logging.INFO # Could be e.g. "DEBUG" or "WARNING"
