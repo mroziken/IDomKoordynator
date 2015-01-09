@@ -4,24 +4,7 @@ import logging.handlers
 import sqlite3
 from time import sleep
 from datetime import datetime
-#Ala ma kota
-
-LOG_FILENAME = "logserialParser.log"
-LOG_LEVEL = logging.INFO # Could be e.g. "DEBUG" or "WARNING"
-
-DB = '/home/michal/workspace/iDomKoordynator/dev.db'
-
-logger = logging.getLogger(__name__)
-# Set the log level to LOG_LEVEL
-logger.setLevel(LOG_LEVEL)
-# Make a handler that writes to a file, making a new file at midnight and keeping 3 backups
-handler = logging.handlers.TimedRotatingFileHandler(LOG_FILENAME, when="midnight", backupCount=3)
-# Format each log message like this
-formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s')
-# Attach the formatter to the handler
-handler.setFormatter(formatter)
-# Attach the handler to the logger
-logger.addHandler(handler)
+import sys
 
 # Make a class we can use to capture stdout and sterr in the log
 class MyLogger(object):
@@ -36,34 +19,17 @@ class MyLogger(object):
                         self.logger.log(self.level, message.rstrip())
 
 # Replace stdout with logging to file at INFO level
-#sys.stdout = MyLogger(logger, logging.INFO)
+sys.stdout = MyLogger(logger, logging.INFO)
 # Replace stderr with logging to file at ERROR level
-#sys.stderr = MyLogger(logger, logging.ERROR)
-
-
-def selectPending():
-	print 'In selectPending'
-	db = None
-	rows = None
-	try:
-		db = sqlite3.connect(DB)
-		cur=db.cursor()
-		cur.execute('''select ts,devtype,dev,msg from logserial where stat is null ''')
-		rows=cur.fetchall()
-	except sqlite3.Error, e:
-		print "error %s:" % e.args[0]
-	finally:
-		if db:
-			db.close()
-		return rows
+sys.stderr = MyLogger(logger, logging.ERROR)
 
 def processPending():
-	print 'In processPending'
-	rowsToProcess = selectPending()
-	rowToProcess = None
-	result = False
-	if rowsToProcess:
-		print 'processPending: found pending'
+    print 'In processPending'
+    rowsToProcess = selectPending()
+    rowToProcess = None
+    result = False
+    if rowsToProcess:
+        print 'processPending: found pending'
         for rowToProcess in rowsToProcess:
             print rowToProcess
             ts=rowToProcess[0]
@@ -86,21 +52,26 @@ def processPending():
                 procStat='E'
             updateStatus(ts,devType,addr,procStat)
 
-def StrToDate(Str):
-    yyyy=Str[0:4]
-    mm=Str[4:6]
-    dd=Str[6:8]
-    HH=Str[8:10]
-    MI=Str[10:12]
-    SS=Str[12:14]
-    SSSSS=Str[14:20]
-    return yyyy+'-'+mm+'-'+dd+' '+HH+':'+MI+':'+SS+'.'+SSSSS
+def selectPending():
+    print 'In selectPending'
+    db = None
+    rows = None
+    try:
+        db = sqlite3.connect(DB)
+        cur=db.cursor()
+        cur.execute('''select ts,devtype,dev,msg from logserial where stat is null ''')
+        rows=cur.fetchall()
+    except sqlite3.Error, e:
+        print "error %s:" % e.args[0]
+    finally:
+        if db:
+            db.close()
+        return rows
 
 def parseMsg(msg):
     print 'In parseMsg'
     msgType=None # rep -for replay, info - for pushed messages, err - for error messages
-    pinType=None
-    pinNumber=None
+    pin=None
     val=None
     ts=None
     (pin,val,ts) = msg.split('=')
@@ -114,6 +85,25 @@ def parseMsg(msg):
         else:
             msgType='rep'
     return msgType,pin,val,ts
+
+def handleERR(ts,msgtype,dev,msg):
+    print ts, msgtype, dev, msg
+    return True
+
+def handleMSG(ts,msgtype, dev,msg):
+    print ts, msgtype, dev, msg
+    return True
+
+def handleREP(ts,msgtype, dev,pin,val,msgTs):
+    print 'In handleRep'
+    result = False
+    if (pin[0]=='A' or pin[0] == 'D'):
+        if(setPINvalue(dev,pin,val)):
+            result = updateCmdStatus(msgTs,'S')
+    else:
+        if(setPINvalue(dev,'V',None,pin,val)):
+            result = updateCmdStatus(msgTs,'S')
+    return result
 
 def updateCmdStatus(ts,stat):
     print 'In updateCmdStatus'
@@ -143,25 +133,22 @@ def updateCmdStatus(ts,stat):
             db.close()
         return result
 
-def handleERR(ts,msgtype,dev,msg):
-	print ts, msgtype, dev, msg
-	return True
 
-def handleMSG(ts,msgtype, dev,msg):
-	print ts, msgtype, dev, msg
-	return True
+def StrToDate(Str):
+    yyyy=Str[0:4]
+    mm=Str[4:6]
+    dd=Str[6:8]
+    HH=Str[8:10]
+    MI=Str[10:12]
+    SS=Str[12:14]
+    SSSSS=Str[14:20]
+    return yyyy+'-'+mm+'-'+dd+' '+HH+':'+MI+':'+SS+'.'+SSSSS
 
-def handleREP(ts,msgtype, dev,pin,val,msgTs):
-    print 'In handleRep'
-    result = False
-    if (pin[0]=='A' or pin[0] == 'D'):
-        if(setPINvalue(dev,pin,val)):
-            result = updateCmdStatus(msgTs,'S')
-    else:
-        if(setPINvalue(dev,'V',None,pin,val)):
-            result = updateCmdStatus(msgTs,'S')
-    return result
-
+def setPINvalue(endpoint,pin,stat=None,vname=None,vval=None):
+    print 'In setPINvalue'
+    pinType=pin[0]
+    pinNumber=pin[1:]
+    return updateMenu(endpoint,pinType,pinNumber,stat,vname,vval)
 
 def updateMenu(endpoint,pintype,pinnumber,state,vname,vval):
     print 'In updateMenu'
@@ -189,13 +176,6 @@ def updateMenu(endpoint,pintype,pinnumber,state,vname,vval):
                         db.close()
                 return result
 
-def setPINvalue(endpoint,pin,stat=None,vname=None,vval=None):
-    print 'In setPINvalue'
-    pinType=pin[0]
-    pinNumber=pin[1:]
-    return updateMenu(endpoint,pinType,pinNumber,stat,vname,vval)
-
-
 def updateStatus(ts,msgtype,dev,stat):
     db = None
     result = True
@@ -214,6 +194,23 @@ def updateStatus(ts,msgtype,dev,stat):
                 if db:
                         db.close()
                 return result
+
+DB = 'dev.db'
+
+LOG_FILENAME = "/tmp/logserialParser.log"
+LOG_LEVEL = logging.INFO # Could be e.g. "DEBUG" or "WARNING"
+
+logger = logging.getLogger(__name__)
+# Set the log level to LOG_LEVEL
+logger.setLevel(LOG_LEVEL)
+# Make a handler that writes to a file, making a new file at midnight and keeping 3 backups
+handler = logging.handlers.TimedRotatingFileHandler(LOG_FILENAME, when="midnight", backupCount=3)
+# Format each log message like this
+formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s')
+# Attach the formatter to the handler
+handler.setFormatter(formatter)
+# Attach the handler to the logger
+logger.addHandler(handler)
 
 while True:
     processPending()    
