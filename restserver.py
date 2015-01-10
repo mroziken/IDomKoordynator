@@ -84,6 +84,7 @@ class lights_on:
         endpointDet=getEndpointDet(dev)
         devtype=endpointDet[0]
         address=endpointDet[1]
+        print "devtype:"+devtype+ " address:"+address
         ret=cmdjrnlWrite(devtype,address,cmd)
         if ret:
             return_obj.setTs(ret)
