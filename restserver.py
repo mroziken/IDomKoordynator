@@ -9,24 +9,6 @@ import datetime
 import sys
 from collections import namedtuple
 
-
-
-LOG_FILENAME = '/tmp/listener.log'
-LOG_LEVEL = logging.INFO # Could be e.g. "DEBUG" or "WARNING"
-DB='/home/michal/workspace/iDomKoordynator/dev.db'
-
-logger = logging.getLogger(__name__)
-# Set the log level to LOG_LEVEL
-logger.setLevel(LOG_LEVEL)
-# Make a handler that writes to a file, making a new file at midnight and keeping 3 backups
-handler = logging.handlers.TimedRotatingFileHandler(LOG_FILENAME, when="midnight", backupCount=3)
-# Format each log message like this
-formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s')
-# Attach the formatter to the handler
-handler.setFormatter(formatter)
-# Attach the handler to the logger
-logger.addHandler(handler)
-
 def namedtuple_factory(cursor, row):
     """
     Usage:
@@ -245,8 +227,21 @@ def cmdjrnlWrite(devtype,address,cmd):
             db.close()
         return result
     
-    
+LOG_FILENAME = '/tmp/listener.log'
+LOG_LEVEL = logging.INFO # Could be e.g. "DEBUG" or "WARNING"
+DB='dev.db'
 
+logger = logging.getLogger(__name__)
+# Set the log level to LOG_LEVEL
+logger.setLevel(LOG_LEVEL)
+# Make a handler that writes to a file, making a new file at midnight and keeping 3 backups
+handler = logging.handlers.TimedRotatingFileHandler(LOG_FILENAME, when="midnight", backupCount=3)
+# Format each log message like this
+formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s')
+# Attach the formatter to the handler
+handler.setFormatter(formatter)
+# Attach the handler to the logger
+logger.addHandler(handler)
 
 if __name__ == "__main__":
     app.run()
