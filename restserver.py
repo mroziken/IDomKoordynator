@@ -7,6 +7,7 @@ import collections
 import time
 import datetime
 import sys
+import inspect
 from collections import namedtuple
 
 def namedtuple_factory(cursor, row):
@@ -36,8 +37,7 @@ class MyLogger(object):
 #sys.stderr = MyLogger(logger, logging.ERROR)
 
 urls = (
-    '/lights_on', 'lights_on',
-    '/lights_off', 'lights_off',
+    '/dev_drv', 'dev_drv',
     '/digital_read', 'digital_read',
     '/get_layout', 'get_layout',
     '/check_cmd_proc', 'check_cmd_proc'
@@ -69,6 +69,7 @@ class returnObject:
 
 class check_cmd_proc:        
     def GET(self):
+        print "In class:"+self.__class__.__name__
         return_obj=returnObject()
         user_data=web.input()
         ts=user_data.YY+'-'+user_data.MM+'-'+user_data.DD+' '+user_data.HH+':'+user_data.mm+':'+user_data.SS+'.'+user_data.ms
@@ -76,31 +77,19 @@ class check_cmd_proc:
             return_obj.setResult(False)
         return json.dumps(return_obj.getReturnObject())
 
-class lights_on:        
+class dev_drv:        
     def GET(self):
         return_obj=returnObject()
-        cmd='1701'
-        dev='mxm1'
+        user_data=web.input()
+        cmd=user_data.pincmd
+        dev=user_data.dev
+        print "In class:"+self.__class__.__name__+" dev:"+dev+" cmd"+cmd
         endpointDet=getEndpointDet(dev)
         devtype=endpointDet[0]
         address=endpointDet[1]
+        addr=endpointDet[2]
         print "devtype:"+devtype+ " address:"+address
-        ret=cmdjrnlWrite(devtype,address,cmd)
-        if ret:
-            return_obj.setTs(ret)
-        else:
-            return_obj.setResult(False)
-        return json.dumps(return_obj.getReturnObject())
-
-class lights_off:
-    def GET(self):
-        return_obj=returnObject()
-        cmd="1700"
-        dev='mxm1'
-        endpointDet=getEndpointDet(dev)
-        devtype=endpointDet[0]
-        address=endpointDet[1]
-        ret=cmdjrnlWrite(devtype,address,cmd)
+        ret=cmdjrnlWrite(devtype,address,addr,cmd,dev)
         if ret:
             return_obj.setTs(ret)
         else:
@@ -110,12 +99,15 @@ class lights_off:
 class digital_read:
     def GET(self):
         return_obj=returnObject()
-        cmd="\x10"
-        dev='mxm1'
+        user_data=web.input()
+        cmd=user_data.pincmd
+        dev=user_data.dev
+        print "In class:"+self.__class__.__name__+" dev:"+dev+" cmd:"+cmd
         endpointDet=getEndpointDet(dev)
         devtype=endpointDet[0]
         address=endpointDet[1]
-        result=cmdjrnlWrite(devtype,address,cmd)
+        addr=endpointDet[2]
+        result=cmdjrnlWrite(devtype,address,addr,cmd,dev)
         print 'result',result
         #return_obj['menu']=objects_list
         #return_obj['result']=result
@@ -127,6 +119,7 @@ class get_layout:
     db = None
     rows = None
     def GET(self):
+        print "In class:"+self.__class__.__name__
         return_obj=returnObject()
         objects_list=[]
         try:
@@ -193,7 +186,7 @@ def getEndpointDet(endpoint):
         db = sqlite3.connect(DB)
         db.row_factory = namedtuple_factory
         c=db.cursor()
-        c.execute('''SELECT type, address from endpointaddr where endpoint=?''',(endpoint,))
+        c.execute('''SELECT type, address, addr from endpointaddr where endpoint=?''',(endpoint,))
         row=c.fetchone()
     except sqlite3.Error, e:
         print "Error %s:" % e.args[0]
@@ -205,7 +198,7 @@ def getEndpointDet(endpoint):
             db.close()
         return row
 
-def cmdjrnlWrite(devtype,address,cmd):
+def cmdjrnlWrite(devtype,address,addr,cmd,dev):
     print 'Writing to cmdjrnl:%s' % cmd
     stat='P'
     result=''
@@ -214,7 +207,7 @@ def cmdjrnlWrite(devtype,address,cmd):
         db = sqlite3.connect(DB)
         c = db.cursor()
         ts=datetime.datetime.now().isoformat(' ')
-        c.execute('''INSERT INTO cmdjrnl(ts,devtype,address,cmd,stat) VALUES(?,?,?,?,?)''',(ts,devtype,address,cmd,stat))
+        c.execute('''INSERT INTO cmdjrnl(ts,devtype,address,cmd,stat,dev,addr) VALUES(?,?,?,?,?,?,?)''',(ts,devtype,address,cmd,stat,dev,addr))
         db.commit()
         result=ts
         

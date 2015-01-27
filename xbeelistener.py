@@ -21,18 +21,14 @@ class MyLogger(object):
 			self.logger.log(self.level, message.rstrip())
  
 # Replace stdout with logging to file at INFO level
-sys.stdout = MyLogger(logger, logging.INFO)
+#sys.stdout = MyLogger(logger, logging.INFO)
 # Replace stderr with logging to file at ERROR level
-sys.stderr = MyLogger(logger, logging.ERROR)
+#sys.stderr = MyLogger(logger, logging.ERROR)
 
 	
-def readSerial():
+def readSerial(data):
 	print 'Reading from serial '
-	try:
-		response = xbee.wait_read_frame(0.1)
-		print response
-	except:
-		print "TimeoutException"
+	print data
 	
 def err(msg):
 	print msg
@@ -44,7 +40,7 @@ def selectPendingCmd():
 	try:
 		db = sqlite3.connect(DB)
 		cur=db.cursor()
-		cur.execute('''select ts,dev,cmd from cmdjrnl where stat='P' order by ts asc''')
+		cur.execute('''select ts,address,cmd,dev,addr from cmdjrnl where stat='P' order by ts asc''')
 		rows=cur.fetchall()
 	except sqlite3.Error, e:
 		print "error %s:" % e.args[0]
@@ -66,7 +62,7 @@ def updateCmdStatus(ts,dev,cmd,stat):
 	try:
 		db = sqlite3.connect(DB)
 		cur=db.cursor()
-		cur.execute('''update cmdjrnl set stat=?, statts=? where ts=? and dev=? and cmd=?''',(stat,datetime.now(),ts,dev,cmd))
+		cur.execute('''update cmdjrnl set stat=?, statts=? where ts=? and dev=?''',(stat,datetime.now(),ts,dev))
 		db.commit()
 	except sqlite3.Error, e:
 		print "Error: %s" % e.args[0]
@@ -101,32 +97,35 @@ def updateLogSerial(msgtype,dev,msg):
 			db.close()
 		return result
 
-def xbeeSend(cmd):
-	RETRIES=3
-	MSGSTAT=False
-	DEST_ADDR_LONG='\x00\x13\xA2\x00\x40\xB1\x91\x62'
-	DEST_ADDR='\x40\x2E'
-	cmdRow='2014102023310212345\x17\x01'
+def xbeeSend(ts,address,addr,cmd):
+	#RETRIES=3
+	#MSGSTAT=False
+	#DEST_ADDR_LONG='\x00\x13\xA2\x00\x40\xB1\x91\x62'
+	DEST_ADDR_LONG=address
+	DEST_ADDR=addr
+	#cmdRow='2014102023310212345\x1800'
+	cmdRow=ts+cmd
 	print ('''xbee command: 'tx', dest_addr_long=%s, dest_addr=%s, data=%s ''' % (DEST_ADDR_LONG.encode("hex"),DEST_ADDR.encode("hex"),cmdRow.encode("hex"),))
 	xbee.send('tx',dest_addr_long=DEST_ADDR_LONG, dest_addr=DEST_ADDR, data=cmdRow)
-	for tries in range(0,RETRIES):
-		print ("Loop: "+str(tries))
-		try:
-			response = xbee.wait_read_frame(0.5)
-			print response
-			if (response['deliver_status'] == '\x00'):
-				print("Message delivered")
-				MSGSTAT=True
-				break
-			else:
-				print("Message not delivered")
-		except:
-			print "TimeoutException"
-		
-	if (MSGSTAT):
-		return True
-	else:
-		return False
+	#
+	#for tries in range(0,RETRIES):
+	#	print ("Loop: "+str(tries))
+	#	try:
+	#		response = xbee.wait_read_frame()
+	#		if (response['deliver_status'] == '\x00'):
+	#			print("Message delivered")
+	#			MSGSTAT=True
+	#			break
+	#		else:
+	#			print("Message not delivered")
+	#	except Exception:
+	#		print sys.exc_info()
+	#	
+	#if (MSGSTAT):
+	#	return True
+	#else:
+	#	return False
+	return True
 		
 
 def parseSerial(line):
@@ -138,9 +137,33 @@ def parseSerial(line):
 	else:
 		updaResult=updateLogSerial('JNK','',line)
 
+def convert2hex(str,step=2):
+	ret=''
+	if (step<=0):
+		print "Step must be >0"
+	elif (len(str)%step>0):
+		print "Length of str not multiple of step"
+	else:
+		for i in range (0, len(str), step):
+			if (step==1):
+				ret+=('0'+str[i:i+step]).decode("hex")
+			else:
+				ret+=str[i:i+step].decode("hex")
+	return ret
 
-ser = serial.Serial("/dev/ttyUSB0", baudrate=38400, timeout=1)
-xbee = ZigBee(ser,escaped=True)
+def date2str(date):
+	yyyy=date[0:4]
+	mm=date[5:7]
+	dd=date[8:10]
+	hh=date[11:13]
+	mi=date[14:16]
+	ss=date[17:19]
+	ssssss=date[20:26]
+	return yyyy+mm+dd+hh+mi+ss+ssssss
+	
+
+ser = serial.Serial("/dev/ttyUSB1", baudrate=38400)
+#xbee = ZigBee(ser,escaped=True)
 
 DB = 'dev.db'
 
@@ -159,30 +182,34 @@ handler.setFormatter(formatter)
 # Attach the handler to the logger
 logger.addHandler(handler)
 
+xbee = ZigBee(ser, escaped = True, callback=readSerial)
+
 while True:
-	lines = None
-	cmdRows = None
-	cmdRow = None
-	
-	#Reading serial
-	readSerial()
+	try:
+		lines = None
+		cmdRows = None
+		cmdRow = None
+		
+		#Fetch unprocessed commands
+		cmdRows=selectPendingCmd()
+		if (cmdRows):
+			for cmdRow in cmdRows:
+				ts=cmdRow[0]
+				address=convert2hex(cmdRow[1])
+				cmd=convert2hex(cmdRow[2])
+				dev=cmdRow[3]
+				addr=convert2hex(cmdRow[4])
+				#print "ts:"+ts+" address:"+address.decode("hex")+" addr"+addr.decode("hex")+" cmd"+cmd
+				if (xbeeSend(convert2hex(date2str(ts),1),address,addr,cmd)):
+					print 'Write to serial successful and waiting for replay'
+					updResult=updateCmdStatus(ts,dev,cmd,'R')
+				else:
+					print 'Write to serial unsucessful'
+					updResult=updateCmdStatus(ts,dev,cmd,'E')
+					print 'Update status result: %s' % updResult
+		sleep(0.5)
+	except KeyboardInterrupt:
+		break
 
-	#Fetch unprocessed commands
-	cmdRows=selectPendingCmd()
-	if (cmdRows):
-		for cmdRow in cmdRows:
-			ts=cmdRow[0]
-			dev=cmdRow[1]
-			cmd=cmdRow[2]
-			if (xbeeSend(cmd)):
-				print 'Write to serial successful and waiting for replay'
-				updResult=updateCmdStatus(ts,dev,cmd,'R')
-			else:
-				print 'Write to serial unsucessful'
-				updResult=updateCmdStatus(ts,dev,cmd,'E')
-			print 'Update status result: %s' % updResult
-	else:
-		print 'No rows selected'
-	sleep(0.5)
-
-
+xbee.halt()
+ser.close()
