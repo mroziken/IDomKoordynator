@@ -4,71 +4,71 @@ class MYDB(object):
     def __init__(self,DB):
         self.db=DB
         self.con = None
+        self.con=sqlite3.connect(self.db, timeout=2)
     def    close(self):
         self.con.close()
     def executeSelect(self,query,params):
         rows=None
         try:
-            self.con=sqlite3.connect(self.db)
             cur=self.con.cursor()
             cur.execute(query,params)
             rows=cur.fetchall()
         except sqlite3.Error, e:
             print "error %s:" % e.args[0]
+        except sqlite3.OperationalError:
+            print "Database is locked"
         except Exception, e:
             print repr(e)
         finally:
-            if (self.con):
-                self.close()
             return rows
     def executeSelectOne(self,query,params):
         row=None
         try:
-            self.con=sqlite3.connect(self.db)
             cur=self.con.cursor()
             cur.execute(query,params)
             row=cur.fetchone()
         except sqlite3.Error, e:
             print "error %s:" % e.args[0]
+        except sqlite3.OperationalError:
+            print "Database is locked"
         except Exception, e:
             print repr(e)
         finally:
-            if (self.con):
-                self.close()
-            return row
-    def executeUpdate(self,query,params):
+            return row[0]
+    def executeUpdate(self,query,params=None):
         result=True
         try:
-            self.con=sqlite3.connect(self.db)
             cur=self.con.cursor()
-            cur.execute(query,params)
+            if (params):
+                cur.execute(query,params)
+            else:
+                cur.execute(query)
             self.con.commit()
         except sqlite3.Error, e:
             print "Error: %s" % e.args[0]
             result=False
+        except sqlite3.OperationalError:
+            print "Database is locked"
         except Exception, e:
             print repr(e)
             result=False
         finally:
-            if (self.con):
-                self.close()
             return result
     def executeInsert(self,query,params):
         result=True
         try:
-            self.con=sqlite3.connect(self.db)
             cur=self.con.cursor()
             cur.execute(query,params)
             self.con.commit()
         except sqlite3.Error, e:
             print "Error: %s" % e.args[0]
             result=False
+        except sqlite3.OperationalError:
+            print "Database is locked"
         except Exception, e:
             print repr(e)
             result=False
         finally:
-            if (self.con):
-                self.close()
             return result
 
 
@@ -111,14 +111,19 @@ def date2str(date):
     return yyyy+mm+dd+hh+mi+ss+ssssss
 
 def str2date(Str):
-    yyyy=Str[0:4]
-    mm=Str[4:6]
-    dd=Str[6:8]
-    HH=Str[8:10]
-    MI=Str[10:12]
-    SS=Str[12:14]
-    SSSSS=Str[14:20]
-    return yyyy+'-'+mm+'-'+dd+' '+HH+':'+MI+':'+SS+'.'+SSSSS
+    if (Str[0].encode('ascii')<>'\x00'):
+        print 'x'
+        yyyy=Str[0:4]
+        mm=Str[4:6]
+        dd=Str[6:8]
+        HH=Str[8:10]
+        MI=Str[10:12]
+        SS=Str[12:14]
+        SSSSS=Str[14:20]
+        return yyyy+'-'+mm+'-'+dd+' '+HH+':'+MI+':'+SS+'.'+SSSSS
+    else:
+        print 'y'
+        return ""
 
 def ByteToHex( byteStr ):
     """
@@ -134,7 +139,7 @@ def ByteToHex( byteStr ):
     #
     #    return ''.join( hex ).strip()        
 
-    return ''.join( [ "%02X " % ord( x ) for x in byteStr ] ).strip()
+    return ''.join( [ "%02X" % ord( x ) for x in byteStr ] ).strip()
 
 #-------------------------------------------------------------------------------
 
