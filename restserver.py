@@ -9,6 +9,7 @@ import datetime
 import sys
 import inspect
 from collections import namedtuple
+from mxmutls import MyLogger
 
 def namedtuple_factory(cursor, row):
     """
@@ -19,17 +20,7 @@ def namedtuple_factory(cursor, row):
     Row = namedtuple("Row", fields)
     return Row(*row)
 
-# Make a class we can use to capture stdout and sterr in the log
-class MyLogger(object):
-        def __init__(self, logger, level):
-                """Needs a logger and a logger level."""
-                self.logger = logger
-                self.level = level
 
-        def write(self, message):
-                # Only log if there is a message (not just a new line)
-                if message.rstrip() != "":
-                        self.logger.log(self.level, message.rstrip())
 
 # Replace stdout with logging to file at INFO level
 #sys.stdout = MyLogger(logger, logging.INFO)
@@ -126,7 +117,7 @@ class get_layout:
             db = sqlite3.connect(DB)
             db.row_factory = namedtuple_factory
             c=db.cursor()
-            c.execute('''SELECT UpperLevel, ElementName, ElementType, CommandOn,CommandOff, state FROM menu order by UpperLevel, ElementName''')
+            c.execute('''SELECT UpperLevel, ElementName, ElementType, CommandOn,CommandOff, state, pintype, vname,vval FROM menu order by UpperLevel, ElementName''')
             rows = c.fetchall()
             for row in rows:
                 d = collections.OrderedDict()
@@ -135,7 +126,10 @@ class get_layout:
                 d['ElementType'] = row.ElementType
                 d['CommandOn'] = row.CommandOn
                 d['CommandOff'] = row.CommandOff
-                d['State']=row.state
+		d['pintype'] = row.pintype
+                d['State'] = row.state
+		d['vname'] = row.vname
+		d['vval'] = row.vval
                 objects_list.append(d)
         except sqlite3.Error, e:
             print "error %s:" % e.args[0]

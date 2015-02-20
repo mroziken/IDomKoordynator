@@ -3,173 +3,116 @@
 from xbee import ZigBee
 import serial
 import logging.handlers
-import sqlite3
 import sys
 from time import sleep
 from datetime import  datetime
+from mxmutls import MYDB
+from mxmutls import MyLogger
+from mxmutls import convert2hex
+from mxmutls import date2str
+from mxmutls import HexToByte
+from mxmutls import ByteToHex
 
-# Make a class we can use to capture stdout and sterr in the log
-class MyLogger(object):
-	def __init__(self, logger, level):
-		"""Needs a logger and a logger level."""
-		self.logger = logger
-		self.level = level
- 
-	def write(self, message):
-		# Only log if there is a message (not just a new line)
-		if message.rstrip() != "":
-			self.logger.log(self.level, message.rstrip())
- 
-# Replace stdout with logging to file at INFO level
-#sys.stdout = MyLogger(logger, logging.INFO)
-# Replace stderr with logging to file at ERROR level
-#sys.stderr = MyLogger(logger, logging.ERROR)
-
-	
 def readSerial(data):
 	print 'Reading from serial '
 	print data
+	mydb1=MYDB(DB)
+	if (data['id']=='tx_status'):
+		if (data['deliver_status'] == '\x00'):
+			updateCmdStatusFrameId('D',data['frame_id'],mydb1)
+		else:
+			updateCmdStatusFrameId('D',data['frame_id'],mydb1)
+	elif(data['id']=='rx'): 
+		insertLogserial(mydb1,data['rf_data'],ByteToHex(data['source_addr_long']))
+
+		
+def xbeeSeq(seq):
+	seq=seq+1
+	if (seq>=255):
+		seq=1
+	return seq
 	
-def err(msg):
-	print msg
-	return 1
 
 def selectPendingCmd():
-	db = None
-	rows = None
-	try:
-		db = sqlite3.connect(DB)
-		cur=db.cursor()
-		cur.execute('''select ts,address,cmd,dev,addr from cmdjrnl where stat='P' order by ts asc''')
-		rows=cur.fetchall()
-	except sqlite3.Error, e:
-		print "error %s:" % e.args[0]
-	finally:
-		if db:
-			db.close()
-		return rows
+	query = '''select ts,address,cmd,dev,addr from cmdjrnl where stat=? order by ts asc'''
+	params = ('P',)
+	return mydb.executeSelect(query, params)
 
-def updateCmdStatus(ts,dev,cmd,stat):
+def insertLogserial(mydb1,rfData,dev):
+	query = '''insert into logserial(ts,dev,msg) values (?,?,?)'''
+	params = (datetime.now(),dev,rfData)
+	return mydb1.executeInsert(query,params)
+
+
+def updateCmdStatus(ts,dev,cmd,stat,frameId):
 	print 'In updateCmdStatus'
-	###################################
-	#Posible statuses of commands are:#
-	#	P - Pendig for execution  #
-	#	S - Sucsssrully completed #
-	#	E - Error                 #
-	###################################
-	db = None
-	result=True
-	try:
-		db = sqlite3.connect(DB)
-		cur=db.cursor()
-		cur.execute('''update cmdjrnl set stat=?, statts=? where ts=? and dev=?''',(stat,datetime.now(),ts,dev))
-		db.commit()
-	except sqlite3.Error, e:
-		print "Error: %s" % e.args[0]
-		result=False
-	except Exception, e:
-		print repr(e)
-		result=False
-	finally:
-		if db:
-			db.close()
-		return result
+	####################################
+	#Possible statuses of commands are:#
+	#	P - Pending for execution      #
+	#   T - Transmitted                #
+	#   D - Delivered	               #
+	#   N - Not Delivered              #
+	#	S - Successfully completed     #
+	#	E - Error                      #
+	#   O - Obsoleted                  #
+	####################################
+	query = '''update cmdjrnl set stat=?, statts=?, frameId=? where ts=? and dev=?'''
+	params = (stat,datetime.now(),frameId,ts,dev)
+	print (query, params)
+	return mydb.executeUpdate(query, params)
+
+def updateCmdStatusFrameId(stat,frameId,mydb1):
+	print 'In updateCmdStatusFrameId'
+	####################################
+	#Possible statuses of commands are:#
+	#	P - Pending for execution      #
+	#   T - Transmitted                #
+	#   D - Delivered	               #
+	#   N - Not Delivered              #
+	#	S - Successfully completed     #
+	#	E - Error                      #
+	#   O - Obsoleted                  #
+	####################################
+	query = '''update cmdjrnl set stat=?, statts=? where frameId=?'''
+	params = (stat,datetime.now(),frameId)
+	print (query, params)
+	return mydb1.executeUpdate(query, params)
+	
 
 def updateLogSerial(msgtype,dev,msg):
 	print 'In updateLogSerial'
-	db = None
-	result=True
-	try:
-		db = sqlite3.connect(DB)
-		cur=db.cursor()
-		sqlstmt='''INSERT INTO logserial (TS,MSGTYPE,DEV,MSG) VALUES('%s','%s','%s','%s')''' % (datetime.now(),msgtype,dev,msg)
-		print sqlstmt
-		cur.execute(sqlstmt)
-		db.commit()
-	except  sqlite3.Error, e:
-		print "Error: %s" % e.args[0]
-		result=False
-	except Exception, e:
-		print repr(e)
-		result=False
-	finally:
-		if db:
-			db.close()
-		return result
+	query = '''INSERT INTO logserial (TS,MSGTYPE,DEV,MSG) VALUES('%s','%s','%s','%s')''' % (datetime.now(),msgtype,dev,msg)
+	params = ''
+	return mydb.executeInsert(query,params)
+
 
 def xbeeSend(ts,address,addr,cmd):
-	#RETRIES=3
-	#MSGSTAT=False
-	#DEST_ADDR_LONG='\x00\x13\xA2\x00\x40\xB1\x91\x62'
-	DEST_ADDR_LONG=address
-	DEST_ADDR=addr
-	#cmdRow='2014102023310212345\x1800'
-	cmdRow=ts+cmd
-	print ('''xbee command: 'tx', dest_addr_long=%s, dest_addr=%s, data=%s ''' % (DEST_ADDR_LONG.encode("hex"),DEST_ADDR.encode("hex"),cmdRow.encode("hex"),))
-	xbee.send('tx',dest_addr_long=DEST_ADDR_LONG, dest_addr=DEST_ADDR, data=cmdRow)
-	#
-	#for tries in range(0,RETRIES):
-	#	print ("Loop: "+str(tries))
-	#	try:
-	#		response = xbee.wait_read_frame()
-	#		if (response['deliver_status'] == '\x00'):
-	#			print("Message delivered")
-	#			MSGSTAT=True
-	#			break
-	#		else:
-	#			print("Message not delivered")
-	#	except Exception:
-	#		print sys.exc_info()
-	#	
-	#if (MSGSTAT):
-	#	return True
-	#else:
-	#	return False
-	return True
-		
+	global SEQ
+	cmdRow=ts+cmd	
+	print ('''xbee command: 'tx', dest_addr_long=%s, dest_addr=%s, data=%s, frame_id=%s''' % (address.encode("hex"),addr.encode("hex"),cmdRow.encode("hex"),str(hex(SEQ)),))
+	xbee.send('tx',dest_addr_long=address, dest_addr=addr, data=cmdRow, frame_id=HexToByte(str(hex(SEQ)[2:])))
+			
 
-def parseSerial(line):
-	if (len(line) >= 7):
-		type=line[:3]
-		dev=line[3:7]
-		msg=line[7:]
-		updResult=updateLogSerial(type, dev, msg)
-	else:
-		updaResult=updateLogSerial('JNK','',line)
+#def parseSerial(line):
+#	if (len(line) >= 7):
+#		type=line[:3]
+#		dev=line[3:7]
+#		msg=line[7:]
+#		updResult=updateLogSerial(type, dev, msg)
+#	else:
+#		updaResult=updateLogSerial('JNK','',line)
 
-def convert2hex(str,step=2):
-	ret=''
-	if (step<=0):
-		print "Step must be >0"
-	elif (len(str)%step>0):
-		print "Length of str not multiple of step"
-	else:
-		for i in range (0, len(str), step):
-			if (step==1):
-				ret+=('0'+str[i:i+step]).decode("hex")
-			else:
-				ret+=str[i:i+step].decode("hex")
-	return ret
 
-def date2str(date):
-	yyyy=date[0:4]
-	mm=date[5:7]
-	dd=date[8:10]
-	hh=date[11:13]
-	mi=date[14:16]
-	ss=date[17:19]
-	ssssss=date[20:26]
-	return yyyy+mm+dd+hh+mi+ss+ssssss
-	
-
-ser = serial.Serial("/dev/ttyUSB1", baudrate=38400)
-#xbee = ZigBee(ser,escaped=True)
-
+BOUDRATE=9600
+SERIAL="/dev/ttyUSB0"
+DBNAME="dev.db"
 DB = 'dev.db'
-
 LOG_FILENAME = "/tmp/xbeelistener.log"
 LOG_LEVEL = logging.INFO # Could be e.g. "DEBUG" or "WARNING"
+SEQ=1
 
+		
+ 
 logger = logging.getLogger(__name__)
 # Set the log level to LOG_LEVEL
 logger.setLevel(LOG_LEVEL)
@@ -182,7 +125,14 @@ handler.setFormatter(formatter)
 # Attach the handler to the logger
 logger.addHandler(handler)
 
+# Replace stdout with logging to file at INFO level
+#sys.stdout = MyLogger(logger, logging.INFO)
+# Replace stderr with logging to file at ERROR level
+#sys.stderr = MyLogger(logger, logging.ERROR)
+
+ser = serial.Serial(SERIAL, baudrate=BOUDRATE)
 xbee = ZigBee(ser, escaped = True, callback=readSerial)
+mydb=MYDB(DB)
 
 while True:
 	try:
@@ -199,16 +149,15 @@ while True:
 				cmd=convert2hex(cmdRow[2])
 				dev=cmdRow[3]
 				addr=convert2hex(cmdRow[4])
-				#print "ts:"+ts+" address:"+address.decode("hex")+" addr"+addr.decode("hex")+" cmd"+cmd
-				if (xbeeSend(convert2hex(date2str(ts),1),address,addr,cmd)):
-					print 'Write to serial successful and waiting for replay'
-					updResult=updateCmdStatus(ts,dev,cmd,'R')
-				else:
-					print 'Write to serial unsucessful'
-					updResult=updateCmdStatus(ts,dev,cmd,'E')
-					print 'Update status result: %s' % updResult
+				xbeeSend(convert2hex(date2str(ts),1),address,addr,cmd)
+				updResult=updateCmdStatus(ts,dev,cmd,'T',HexToByte(str(hex(SEQ)[2:])))
+				SEQ=xbeeSeq(SEQ)
 		sleep(0.5)
+
+
 	except KeyboardInterrupt:
+		xbee.halt()
+		ser.close()
 		break
 
 xbee.halt()
