@@ -89,6 +89,7 @@ def updateLogSerial(msgtype,dev,msg):
 def xbeeSend(ts,address,addr,cmd):
 	global SEQ
 	cmdRow=ts+cmd	
+	cmdRow='''{"cmd":"RD","time":1351824120,"p1":7,"p2":0}'''
 	print ('''xbee command: 'tx', dest_addr_long=%s, dest_addr=%s, data=%s, frame_id=%s''' % (address.encode("hex"),addr.encode("hex"),cmdRow.encode("hex"),str(hex(SEQ)),))
 	xbee.send('tx',dest_addr_long=address, dest_addr=addr, data=cmdRow, frame_id=HexToByte(str(hex(SEQ)[2:])))
 			
@@ -104,10 +105,10 @@ def xbeeSend(ts,address,addr,cmd):
 
 
 BOUDRATE=9600
-SERIAL="/dev/ttyUSB0"
+SERIAL="/dev/ttyAMA0"
 DBNAME="dev.db"
 DB = 'dev.db'
-LOG_FILENAME = "/tmp/xbeelistener.log"
+LOG_FILENAME = "log/xbeelistener.log"
 LOG_LEVEL = logging.INFO # Could be e.g. "DEBUG" or "WARNING"
 SEQ=1
 
@@ -126,9 +127,9 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 # Replace stdout with logging to file at INFO level
-#sys.stdout = MyLogger(logger, logging.INFO)
+sys.stdout = MyLogger(logger, logging.INFO)
 # Replace stderr with logging to file at ERROR level
-#sys.stderr = MyLogger(logger, logging.ERROR)
+sys.stderr = MyLogger(logger, logging.ERROR)
 
 ser = serial.Serial(SERIAL, baudrate=BOUDRATE)
 xbee = ZigBee(ser, escaped = True, callback=readSerial)

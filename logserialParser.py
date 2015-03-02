@@ -9,11 +9,6 @@ from mxmutls import str2date
 from mxmutls import MyLogger
 from mxmutls import MYDB
 
-# Replace stdout with logging to file at INFO level
-#sys.stdout = MyLogger(logger, logging.INFO)
-# Replace stderr with logging to file at ERROR level
-#sys.stderr = MyLogger(logger, logging.ERROR)
-
 def processPending():
     rowsToProcess = selectPending()
     rowToProcess = None
@@ -136,7 +131,7 @@ def updateStatus(ts,addr,procStat):
 DB = 'dev.db'
 mydb = MYDB(DB)
 
-LOG_FILENAME = "/tmp/logserialParser.log"
+LOG_FILENAME = "log/logserialParser.log"
 LOG_LEVEL = logging.INFO # Could be e.g. "DEBUG" or "WARNING"
 
 logger = logging.getLogger(__name__)
@@ -150,6 +145,12 @@ formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s')
 handler.setFormatter(formatter)
 # Attach the handler to the logger
 logger.addHandler(handler)
+
+# Replace stdout with logging to file at INFO level
+sys.stdout = MyLogger(logger, logging.INFO)
+# Replace stderr with logging to file at ERROR level
+sys.stderr = MyLogger(logger, logging.ERROR)
+
 
 while True:
     processPending()    

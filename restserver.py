@@ -22,11 +22,6 @@ def namedtuple_factory(cursor, row):
 
 
 
-# Replace stdout with logging to file at INFO level
-#sys.stdout = MyLogger(logger, logging.INFO)
-# Replace stderr with logging to file at ERROR level
-#sys.stderr = MyLogger(logger, logging.ERROR)
-
 urls = (
     '/dev_drv', 'dev_drv',
     '/digital_read', 'digital_read',
@@ -73,6 +68,9 @@ class dev_drv:
         return_obj=returnObject()
         user_data=web.input()
         cmd=user_data.pincmd
+        if(cmd==str(68)):
+           epoch_time = int(time.time())
+           cmd=cmd+str(epoch_time)
         dev=user_data.dev
         print "In class:"+self.__class__.__name__+" dev:"+dev+" cmd"+cmd
         endpointDet=getEndpointDet(dev)
@@ -215,7 +213,7 @@ def cmdjrnlWrite(devtype,address,addr,cmd,dev):
             db.close()
         return result
     
-LOG_FILENAME = '/tmp/listener.log'
+LOG_FILENAME = 'log/restserver.log'
 LOG_LEVEL = logging.INFO # Could be e.g. "DEBUG" or "WARNING"
 DB='dev.db'
 
@@ -230,6 +228,12 @@ formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s')
 handler.setFormatter(formatter)
 # Attach the handler to the logger
 logger.addHandler(handler)
+
+# Replace stdout with logging to file at INFO level
+sys.stdout = MyLogger(logger, logging.INFO)
+# Replace stderr with logging to file at ERROR level
+sys.stderr = MyLogger(logger, logging.ERROR)
+
 
 if __name__ == "__main__":
     app.run()
