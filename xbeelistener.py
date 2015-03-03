@@ -97,7 +97,7 @@ def xbeeSend(ts,address,addr,pincmd,pinnumber,pinval):
 	
 def jsonCmdString(pincmd,pinnumber,pinval,time):
 	x={}
-	if (pincmd.equal('WD') or pincmd.equal('WA') or pincmd.equal('RD') or pincmd=('RA')):
+	if (pincmd in ('RA','RD','WA','WD')):
 		x={'cmd':pincmd,'p1':int(pinnumber),'p2':int(pinval),'tm':time}
 	else:
 		x={'cmd':pincmd,'p1':pinnumber,'p2':pinval,'tm':time}
