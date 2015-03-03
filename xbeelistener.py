@@ -4,6 +4,7 @@ from xbee import ZigBee
 import serial
 import logging.handlers
 import sys
+import json
 from time import sleep
 from datetime import  datetime
 from mxmutls import MYDB
@@ -34,7 +35,7 @@ def xbeeSeq(seq):
 	
 
 def selectPendingCmd():
-	query = '''select ts,address,cmd,dev,addr from cmdjrnl where stat=? order by ts asc'''
+	query = '''select ts,address,cmd,dev,addr,pin,val from cmdjrnl where stat=? order by ts asc'''
 	params = ('P',)
 	return mydb.executeSelect(query, params)
 
@@ -86,12 +87,21 @@ def updateLogSerial(msgtype,dev,msg):
 	return mydb.executeInsert(query,params)
 
 
-def xbeeSend(ts,address,addr,cmd):
+def xbeeSend(ts,address,addr,pincmd,pinnumber,pinval):
 	global SEQ
-	cmdRow=ts+cmd	
-	cmdRow='''{"cmd":"RD","time":1351824120,"p1":7,"p2":0}'''
+	#cmdRow=ts+cmd	
+	#cmdRow='''{"cmd":"RD","time":1351824120,"p1":7,"p2":0}'''
+	cmdRow=jsonCmdString(pincmd,pinnumber,pinval,ts)
 	print ('''xbee command: 'tx', dest_addr_long=%s, dest_addr=%s, data=%s, frame_id=%s''' % (address.encode("hex"),addr.encode("hex"),cmdRow.encode("hex"),str(hex(SEQ)),))
 	xbee.send('tx',dest_addr_long=address, dest_addr=addr, data=cmdRow, frame_id=HexToByte(str(hex(SEQ)[2:])))
+	
+def jsonCmdString(pincmd,pinnumber,pinval,time):
+	x={}
+	if (pincmd.equal('WD') or pincmd.equal('WA') or pincmd.equal('RD') or pincmd=('RA')):
+		x={'cmd':pincmd,'p1':int(pinnumber),'p2':int(pinval),'tm':time}
+	else:
+		x={'cmd':pincmd,'p1':pinnumber,'p2':pinval,'tm':time}
+	return json.dump(x)
 			
 
 #def parseSerial(line):
@@ -106,7 +116,6 @@ def xbeeSend(ts,address,addr,cmd):
 
 BOUDRATE=9600
 SERIAL="/dev/ttyAMA0"
-DBNAME="dev.db"
 DB = 'dev.db'
 LOG_FILENAME = "log/xbeelistener.log"
 LOG_LEVEL = logging.INFO # Could be e.g. "DEBUG" or "WARNING"
@@ -149,8 +158,10 @@ while True:
 				address=convert2hex(cmdRow[1])
 				cmd=convert2hex(cmdRow[2])
 				dev=cmdRow[3]
+				pin=cmdRow[4]
+				val=cmdRow[5]
 				addr=convert2hex(cmdRow[4])
-				xbeeSend(convert2hex(date2str(ts),1),address,addr,cmd)
+				xbeeSend(convert2hex(date2str(ts),1),address,addr,cmd,pin,val)
 				updResult=updateCmdStatus(ts,dev,cmd,'T',HexToByte(str(hex(SEQ)[2:])))
 				SEQ=xbeeSeq(SEQ)
 		sleep(0.5)

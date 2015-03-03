@@ -68,17 +68,16 @@ class dev_drv:
         return_obj=returnObject()
         user_data=web.input()
         cmd=user_data.pincmd
-        if(cmd==str(68)):
-           epoch_time = int(time.time())
-           cmd=cmd+str(epoch_time)
         dev=user_data.dev
-        print "In class:"+self.__class__.__name__+" dev:"+dev+" cmd"+cmd
+        pin=user_data.pincmd
+        val=user_data.pinval
+        print "In class:"+self.__class__.__name__+" dev:"+dev+" cmd:"+cmd+"pin:"+pin+"val:"val
         endpointDet=getEndpointDet(dev)
         devtype=endpointDet[0]
         address=endpointDet[1]
         addr=endpointDet[2]
         print "devtype:"+devtype+ " address:"+address
-        ret=cmdjrnlWrite(devtype,address,addr,cmd,dev)
+        ret=cmdjrnlWrite(devtype,address,addr,cmd,dev,pin,val)
         if ret:
             return_obj.setTs(ret)
         else:
@@ -91,12 +90,14 @@ class digital_read:
         user_data=web.input()
         cmd=user_data.pincmd
         dev=user_data.dev
+        pin=user_data.pin
+        val=user_data.val
         print "In class:"+self.__class__.__name__+" dev:"+dev+" cmd:"+cmd
         endpointDet=getEndpointDet(dev)
         devtype=endpointDet[0]
         address=endpointDet[1]
         addr=endpointDet[2]
-        result=cmdjrnlWrite(devtype,address,addr,cmd,dev)
+        result=cmdjrnlWrite(devtype,address,addr,cmd,dev,pin,val)
         print 'result',result
         #return_obj['menu']=objects_list
         #return_obj['result']=result
@@ -190,7 +191,7 @@ def getEndpointDet(endpoint):
             db.close()
         return row
 
-def cmdjrnlWrite(devtype,address,addr,cmd,dev):
+def cmdjrnlWrite(devtype,address,addr,cmd,dev,pin,val):
     print 'Writing to cmdjrnl:%s' % cmd
     stat='P'
     result=''
@@ -199,7 +200,7 @@ def cmdjrnlWrite(devtype,address,addr,cmd,dev):
         db = sqlite3.connect(DB)
         c = db.cursor()
         ts=datetime.datetime.now().isoformat(' ')
-        c.execute('''INSERT INTO cmdjrnl(ts,devtype,address,cmd,stat,dev,addr) VALUES(?,?,?,?,?,?,?)''',(ts,devtype,address,cmd,stat,dev,addr))
+        c.execute('''INSERT INTO cmdjrnl(ts,devtype,address,cmd,stat,dev,addr,pin,val) VALUES(?,?,?,?,?,?,?,?,?)''',(ts,devtype,address,cmd,stat,dev,addr,pin,val))
         db.commit()
         result=ts
         
