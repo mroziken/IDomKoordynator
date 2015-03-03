@@ -69,7 +69,7 @@ class dev_drv:
         user_data=web.input()
         cmd=user_data.pincmd
         dev=user_data.dev
-        pin=user_data.pincmd
+        pin=user_data.pin
         val=user_data.pinval
         print "In class:"+self.__class__.__name__+" dev:"+dev+" cmd:"+cmd+"pin:"+pin+"val:"val
         endpointDet=getEndpointDet(dev)
