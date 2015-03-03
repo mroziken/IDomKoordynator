@@ -156,7 +156,7 @@ while True:
 			for cmdRow in cmdRows:
 				ts=cmdRow[0]
 				address=convert2hex(cmdRow[1])
-				cmd=convert2hex(cmdRow[2])
+				cmd=cmdRow[2]
 				dev=cmdRow[3]
 				pin=cmdRow[4]
 				val=cmdRow[5]
