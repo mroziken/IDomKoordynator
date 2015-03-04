@@ -101,7 +101,7 @@ def jsonCmdString(pincmd,pinnumber,pinval,time):
 		x.setParams(pincmd, int(pinnumber), int(pinval), time)
 	else:
 		x.setParams(pincmd, pinnumber, pinval, time)
-	return json.dump(x)
+	return json.dumps(x)
 
 class returnObject:
 	def __init__(self):
