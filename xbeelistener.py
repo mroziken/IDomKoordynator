@@ -98,10 +98,21 @@ def xbeeSend(ts,address,addr,pincmd,pinnumber,pinval):
 def jsonCmdString(pincmd,pinnumber,pinval,time):
 	x=returnObject()
 	if (pincmd in ('RA','RD','WA','WD')):
-		x={'cmd':pincmd,'p1':int(pinnumber),'p2':int(pinval),'tm':time}
+		x.setParams(pincmd, int(pinnumber), int(pinval), time)
 	else:
-		x={'cmd':pincmd,'p1':pinnumber,'p2':pinval,'tm':time}
+		x.setParams(pincmd, pinnumber, pinval, time)
 	return json.dump(x)
+
+class returnObject:
+	def __init__(self):
+		self.menuItems = []
+	def setParams(self,pincmd,pinnumber,pinval,time):
+		self.pincmd = pincmd
+		self.pinnumber=pinnumber
+		self.pinval=pinval
+		self.time=pinval
+	def getReturnObject(self):
+		return {'cmd':pincmd,'p1':int(pinnumber),'p2':int(pinval),'tm':time}
 			
 
 #def parseSerial(line):
