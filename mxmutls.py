@@ -91,7 +91,16 @@ def convert2hex(str,step=2):
     if (step<=0):
         print "Step must be >0"
     elif (len(str)%step>0):
-        print "Length of str not multiple of step"
+        #print "Length of str not multiple of step"
+        dummyStr=""
+        for i in range (0,len(str)%step):
+            dummyStr+=" "
+        str+=dummyStr
+        for i in range (0, len(str), step):
+            if (step==1):
+                ret+=('0'+str[i:i+step]).decode("hex")
+            else:
+                ret+=str[i:i+step].decode("hex")
     else:
         for i in range (0, len(str), step):
             if (step==1):

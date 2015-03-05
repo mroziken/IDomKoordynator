@@ -91,7 +91,7 @@ def xbeeSend(ts,address,addr,pincmd,pinnumber,pinval):
 	global SEQ
 	#cmdRow=ts+cmd	
 	#cmdRow='''{"cmd":"RD","time":1351824120,"p1":7,"p2":0}'''
-	cmdRow=convert2hex(jsonCmdString(pincmd,pinnumber,pinval,ts))
+	cmdRow=convert2hex(str(jsonCmdString(pincmd,pinnumber,pinval,ts)))
 	print ('''xbee command: 'tx', dest_addr_long=%s, dest_addr=%s, data=%s, frame_id=%s''' % (address.encode("hex"),addr.encode("hex"),cmdRow.encode("hex"),str(hex(SEQ)),))
 	xbee.send('tx',dest_addr_long=address, dest_addr=addr, data=cmdRow, frame_id=HexToByte(str(hex(SEQ)[2:])))
 	
