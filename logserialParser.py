@@ -90,7 +90,7 @@ def handleMSG(ts,addr,p1,v1,p2,v2):
         print 'In handleMSG', (ts,addr,p1,v1,p2,v2)
     return True
 
-def handleREP(ts,addr,msgTs,p1,v1,p2,v2)):
+def handleREP(ts,addr,msgTs,p1,v1,p2,v2):
     print 'In handleRep',(ts,addr,msgTs,p1,v1,p2,v2))
     result = False
     endpoint=getEndpoint(addr)
