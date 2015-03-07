@@ -5,6 +5,7 @@ import sqlite3
 from time import sleep
 from datetime import datetime
 import sys
+import json
 from mxmutls import str2date
 from mxmutls import MyLogger
 from mxmutls import MYDB
@@ -19,15 +20,20 @@ def processPending():
             print rowToProcess
             ts=rowToProcess[0]
             addr=rowToProcess[1]
-            rawMsg=rowToProcess[2]
-            (msgType,pin,val,msgTs)=parseMsg(rawMsg)
+            cmdDict=json.loads(rowToProcess[2])
+            msgType=cmdDict["tp"]
+            msgTS=cmdDict["tm"]
+            p1=cmdDict["p1"]
+            v1=cmdDict["v1"]
+            p2=cmdDict["p2"]
+            v2=cmdDict["v2"]
             if (msgType=='err'):
-                result = handleERR(ts,msgType,addr,rawMsg)
+                result = handleERR(ts,addr,p1)
             elif (msgType=='info'):
-                result = handleMSG(ts,msgType,addr,rawMsg)
+                result = handleMSG(ts,addr,p1,v1,p2,v2)
             elif (msgType=='rep'):
                 msgTs=str2date(msgTs)
-                result = handleREP(ts,msgType,addr,pin,val,msgTs)
+                result = handleREP(ts,addr,msgTs,p1,v1,p2,v2)
             else:
                 result = False
             if result:
@@ -60,27 +66,45 @@ def parseMsg(msg):
             msgType='rep'
     return msgType,pin,val,ts
 
-def handleERR(ts,msgtype,dev,msg):
-    print 'In handleERR',ts, msgtype, dev, msg
+def handleERR(ts,dev,p1):
+    errMsg=""
+    if (p1==1):
+        errMsg="UNKNOWN_CMD"
+    elif (p1==2):
+        errMsg="JSON_DECODING_FAILED"
+    elif (p1==11):
+        errMsg="TIME_NOT_SET"
+    else:
+        errMsg="UNHANDLED_EXCEPTION"
+    print 'In handleERR',(ts,dev,errMsg)
     return True
 
-def handleMSG(ts,msgtype, dev,msg):
-    print 'In handleMSG', (ts, msgtype, dev, msg)
+def handleMSG(ts,addr,p1,v1,p2,v2):
+    print 'In handleMSG', (ts,addr,p1,v1,p2,v2)
+    endpoint=getEndpoint(addr)
+    if (p2=="PSTAT"):
+        setPINvalue(endpoint, p1, v1, "", "")
+    elif (p2=="VSTAT"):
+        setPINvalue(endpoint, "", "", p1, v1)
+    else:
+        print 'In handleMSG', (ts,addr,p1,v1,p2,v2)
     return True
 
-def handleREP(ts,msgtype, address,pin,val,msgTs):
-    print 'In handleRep',(ts,msgtype, address,pin,val,msgTs)
+def handleREP(ts,addr,msgTs,p1,v1,p2,v2)):
+    print 'In handleRep',(ts,addr,msgTs,p1,v1,p2,v2))
     result = False
-    endpoint=getEndpoint(address)
-    if (pin[0]=='A' or pin[0] == 'D'):
-        if(pin[1].isdigit() and val.isnumeric()):
-            if(setPINvalue(endpoint,pin,val)):
+    endpoint=getEndpoint(addr)
+    if (p1 and v1):
+        if(p1.isdigit() and v1.isnumeric()):
+            if(setPINvalue(endpoint,p1,v1)):
                 result = updateCmdStatus(msgTs,'S')
         else:
             print 'Error: incorrect values'
-    else:
-                if(setPINvalue(endpoint,'V',None,pin,val)):
+    elif(p2 and v2):
+                if(setPINvalue(endpoint,'V',None,p2,v2)):
                     result = updateCmdStatus(msgTs,'S')
+    else:
+        print "Required parameters have no value"
     return result
 
 def getEndpoint(dev):
