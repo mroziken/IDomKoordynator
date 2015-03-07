@@ -91,18 +91,21 @@ def xbeeSend(ts,address,addr,pincmd,pinnumber,pinval):
 	global SEQ
 	#cmdRow=ts+cmd	
 	#cmdRow='''{"cmd":"RD","time":1351824120,"p1":7,"p2":0}'''
-	cmdRow=convert2hex(str(jsonCmdString(pincmd,pinnumber,pinval,ts)))
+	#cmdRow='''{"cmd":"WD","p1":1235,"p2":7,"time":20150306000928838976}'''
+	cmdRow=str(jsonCmdString(pincmd,pinnumber,pinval,ts))
 	print ('''xbee command: 'tx', dest_addr_long=%s, dest_addr=%s, data=%s, frame_id=%s''' % (address.encode("hex"),addr.encode("hex"),cmdRow.encode("hex"),str(hex(SEQ)),))
+	print cmdRow
 	xbee.send('tx',dest_addr_long=address, dest_addr=addr, data=cmdRow, frame_id=HexToByte(str(hex(SEQ)[2:])))
 	
 def jsonCmdString(pincmd,pinnumber,pinval,time):
 	#x=returnObject()
 	if (pincmd in ('RA','RD','WA','WD')):
 		#x.setParams(pincmd, int(pinnumber), int(pinval), time)
-		return {'cmd':pincmd,'p1':int(pinnumber),'p2':int(pinval),'tm':time}
+		return ('''{"cmd":"%s","p1":%s,"p2":%s,"time":%s}''' % (pincmd,pinnumber,pinval,time))
 	else:
 		#x.setParams(pincmd, pinnumber, pinval, time)
-		return {'cmd':pincmd,'p1':pinnumber,'p2':pinval,'tm':time}
+		#return '''{"cmd":pincmd,"p1":pinnumber,"p2":pinval,"tm":time}'''
+                return ('''{"cmd":"%s","p1":%s,"p2":%s,"time":%s}''' % (pincmd,pinnumber,pinval,time))
 	#return json.dumps(x)
 
 class returnObject:
@@ -171,10 +174,10 @@ while True:
 				address=convert2hex(cmdRow[1])
 				cmd=cmdRow[2]
 				dev=cmdRow[3]
-				pin=cmdRow[4]
-				val=cmdRow[5]
 				addr=convert2hex(cmdRow[4])
-				xbeeSend(convert2hex(date2str(ts),1),address,addr,cmd,pin,val)
+                                pin=cmdRow[5]
+                                val=cmdRow[6]
+				xbeeSend(date2str(ts).encode('ascii','ignore'),address,addr,cmd.encode('ascii','ignore'),pin,val)
 				updResult=updateCmdStatus(ts,dev,cmd,'T',HexToByte(str(hex(SEQ)[2:])))
 				SEQ=xbeeSeq(SEQ)
 		sleep(0.5)
