@@ -1,0 +1,11 @@
+ROOT|Ogród|TextView|||0|mxm1||||||
+ROOT|Akwarium|TextView|||0|mxm2||||||
+Ogród|Oświetlenie ogrodu|ToggleButton|http://192.168.1.130:8080/dev_drv?dev=mxm1&pincmd=WD&pinval=1&pin=8|http://192.168.1.130:8080/dev_drv?dev=mxm1&pincmd=WD&pinval=0&pin=8|0|mxm1|D|8||||8
+Ogród|Nawadniane trawnika|ToggleButton|http://192.168.1.130:8080/dev_drv?dev=mxm1&pincmd=WD&pinval=1&pin=7|http://192.168.1.130:8080/dev_drv?dev=mxm1&pincmd=WD&pinval=0&pin=7|0|mxm1|D|7||||7
+Akwarium|Oświetlenie normalne|Button|||0|mxm2|D|1||||
+Akwarium|Oświetlenie ultrafiolet|Button|||0|mxm2|D|2||||
+Ogród|Wschód słońca|TextView|||0|mxm1|V|1|LF|05:43:35||91
+Ogród|Zachód słońca|TextView|||0|mxm1|V|2|LO|15:57:37||92
+Akwarium|Temperatura|TextView|||0|mxm2|V|1|temp|||
+Ogród|Wilgotność|SeekBar|||364|mxm1|A|2||||20
+Ogród|Podlewać|TextView||||mxm1|V|3|PO|Tak||93
