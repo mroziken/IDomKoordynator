@@ -102,15 +102,12 @@ def handleREP(ts,addr,msgTs,p1,v1,p2,v2):
     print 'In handleRep',(ts,addr,msgTs,p1,v1,p2,v2) 
     result = False
     endpoint=getEndpoint(addr)
-    if (p1 and v1):
-        if(p1 and v1):
-            if(setPINvalue(endpoint,p1,v1)):
-                result = updateCmdStatus(msgTs,'S')
-        else:
-            print 'Error: incorrect values'
-    elif(p2 and v2):
-                if(setPINvalue(endpoint,'V',None,p2,v2)):
-                    result = updateCmdStatus(msgTs,'S')
+    if (p1!='' and v1!=''):
+        if(setPINvalue(endpoint,p1,v1)):
+            result = updateCmdStatus(msgTs,'S')
+    elif(p2 !='' and v2 !=''):
+        if(setPINvalue(endpoint,'V',None,p2,v2)):
+            result = updateCmdStatus(msgTs,'S')
     else:
         print "Required parameters have no value"
     return result
