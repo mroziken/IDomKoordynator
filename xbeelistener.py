@@ -101,11 +101,11 @@ def jsonCmdString(pincmd,pinnumber,pinval,time):
 	#x=returnObject()
 	if (pincmd in ('RA','RD','WA','WD')):
 		#x.setParams(pincmd, int(pinnumber), int(pinval), time)
-		return ('''{"cmd":"%s","p1":%s,"p2":%s,"time":%s}''' % (pincmd,pinnumber,pinval,time))
+		return ('''{"cmd":"%s","p1":%s,"p2":%s,"time":"%s"}''' % (pincmd,pinnumber,pinval,time))
 	else:
 		#x.setParams(pincmd, pinnumber, pinval, time)
 		#return '''{"cmd":pincmd,"p1":pinnumber,"p2":pinval,"tm":time}'''
-                return ('''{"cmd":"%s","p1":%s,"p2":%s,"time":%s}''' % (pincmd,pinnumber,pinval,time))
+                return ('''{"cmd":"%s","p1":%s,"p2":%s,"time":"%s"}''' % (pincmd,pinnumber,pinval,time))
 	#return json.dumps(x)
 
 class returnObject:
