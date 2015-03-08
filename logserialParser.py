@@ -56,7 +56,6 @@ def selectPending():
     params = ''
     return mydb.executeSelect(query, params)
 
-
 def parseMsg(msg):
     print 'In parseMsg', (msg)
     msgType=None # rep -for replay, info - for pushed messages, err - for error messages
@@ -104,7 +103,7 @@ def handleREP(ts,addr,msgTs,p1,v1,p2,v2):
     result = False
     endpoint=getEndpoint(addr)
     if (p1 and v1):
-        if(p1.isdigit() and v1.isnumeric()):
+        if(p1 and v1):
             if(setPINvalue(endpoint,p1,v1)):
                 result = updateCmdStatus(msgTs,'S')
         else:
