@@ -45,8 +45,10 @@ def processPending():
 def convertToJsonStr(rawStr):
     rawJsonStr=rawStr.encode('ascii', 'ignore')
     if (rawJsonStr.find('\x00')>=0):
+        print json.loads(rawJsonStr[0:rawJsonStr.find('\x00')])
         return json.loads(rawJsonStr[0:rawJsonStr.find('\x00')])
     else:
+        print json.loads(rawJsonStr)
         return json.loads(rawJsonStr)
 
 def selectPending():
