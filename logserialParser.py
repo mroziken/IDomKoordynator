@@ -15,7 +15,7 @@ def processPending():
     rowToProcess = None
     result = False
     if rowsToProcess:
-        print 'processPending: found pending'
+        print 'processPending: found pending' 
         for rowToProcess in rowsToProcess:
             print rowToProcess
             ts=rowToProcess[0]
