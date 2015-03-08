@@ -20,10 +20,7 @@ def processPending():
             print rowToProcess
             ts=rowToProcess[0]
             addr=rowToProcess[1]
-            if (rowToProcess[2].find('\x00')>=0):
-                cmdDict=json.loads(rowToProcess[2][0:rowToProcess[2].find('\x00')].encode('ascii', 'ignore'))
-            else:
-                cmdDict=json.load(rowToProcess[2].encode('ascii', 'ignore'))
+            cmdDict=convertToJsonStr(rowToProcess[2])
             msgType=cmdDict["tp"]
             msgTs=cmdDict["tm"]
             p1=cmdDict["p1"]
@@ -44,6 +41,13 @@ def processPending():
             else:
                 procStat='E'
             updateStatus(ts,addr,procStat)
+
+def convertToJsonStr(rawStr):
+    rawJsonStr=rawStr.encode('ascii', 'ignore')
+    if (rawJsonStr.find('\x00')>=0):
+        return json.loads(rawJsonStr[0:rawJsonStr.find('\x00')])
+    else:
+        return json.loads(rawJsonStr)
 
 def selectPending():
     query = '''select ts,dev,msg from logserial where stat is null'''
