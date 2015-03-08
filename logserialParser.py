@@ -137,18 +137,12 @@ def updateCmdStatus(ts,stat):
 
 def setPINvalue(endpoint,pin,stat=None,vname=None,vval=None):
     print 'In setPINvalue',(endpoint,pin,stat,vname,vval)
-    pinType=pin[0]
-    pinNumber=pin[1:]
-    return updateMenu(endpoint,pinType,pinNumber,stat,vname,vval)
+    return updateMenu(endpoint,pin,stat,vname,vval)
 
-def updateMenu(endpoint,pintype,pinnumber,state,vname,vval):
-    print 'In updateMenu',(endpoint,pintype,pinnumber,state,vname,vval)
-    if (vname and vval):
-        query = '''update menu set  vval='%s' where endpoint='%s' and pintype='%s' and vname='%s' ''' % (vval,endpoint,pintype,vname)
-        params = ''
-    else:
-        query = '''update menu set state=%s where endpoint = '%s' and pintype='%s' and pinnumber=%s''' % (state,endpoint,pintype,pinnumber)
-        params = ''
+def updateMenu(endpoint,pin,state,vname,vval):
+    print 'In updateMenu',(endpoint,pin,state,vname,vval)
+    query = '''update menu set state=%s where endpoint = '%s' and pin=%s''' % (state,endpoint,pin)
+    params = ''
     print query
     return mydb.executeUpdate(query,params)
 
