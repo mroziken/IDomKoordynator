@@ -20,9 +20,12 @@ def processPending():
             print rowToProcess
             ts=rowToProcess[0]
             addr=rowToProcess[1]
-            cmdDict=json.loads(rowToProcess[2])
+            if (rowToProcess[2].find('\x00')>=0):
+                cmdDict=json.load(rowToProcess[2][0:rowToProcess[2].find('\x00')])
+            else:
+                cmdDict=json.load(rowToProcess[2])
             msgType=cmdDict["tp"]
-            msgTS=cmdDict["tm"]
+            msgTs=cmdDict["tm"]
             p1=cmdDict["p1"]
             v1=cmdDict["v1"]
             p2=cmdDict["p2"]
