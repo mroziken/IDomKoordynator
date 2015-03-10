@@ -20,7 +20,10 @@ def processPending():
             print rowToProcess
             ts=rowToProcess[0]
             addr=rowToProcess[1]
-            cmdDict=convertToJsonStr(rowToProcess[2])
+            try:
+                cmdDict=convertToJsonStr(rowToProcess[2])
+            except:
+                print "convertToJsonStr error:", sys.exc_info()
             msgType=cmdDict["tp"]
             msgTs=cmdDict["tm"]
             p1=cmdDict["p1"]
