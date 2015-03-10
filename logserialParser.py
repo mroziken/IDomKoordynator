@@ -98,7 +98,7 @@ def handleMSG(ts,addr,p1,v1,p2,v2):
     if (p2=="PSTAT"):
         setPINvalue(endpoint, p1, v1, "", "")
     elif (p2=="VSTAT"):
-        setPINvalue(endpoint, "", "", p1, v1)
+        setPINvalue(endpoint,p1,None,p2,v2)
     else:
         print 'In handleMSG', (ts,addr,p1,v1,p2,v2)
     return True
@@ -143,7 +143,10 @@ def setPINvalue(endpoint,pin,stat=None,vname=None,vval=None):
 
 def updateMenu(endpoint,pin,state,vname,vval):
     print 'In updateMenu',(endpoint,pin,state,vname,vval)
-    query = '''update menu set state=%s where endpoint = '%s' and pin=%s''' % (state,endpoint,pin)
+    if(vval):
+        query = '''update menu set vval=%s where endpoint = '%s' and pin=%s''' % (vval,endpoint,pin)
+    else:
+        query = '''update menu set state=%s where endpoint = '%s' and pin=%s''' % (state,endpoint,pin)
     params = ''
     print query
     return mydb.executeUpdate(query,params)
