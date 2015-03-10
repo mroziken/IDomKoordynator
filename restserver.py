@@ -65,24 +65,30 @@ class check_cmd_proc:
 
 class dev_drv:        
     def GET(self):
-        return_obj=returnObject()
-        user_data=web.input()
-        cmd=user_data.pincmd
-        dev=user_data.dev
-        pin=user_data.pin
-        val=user_data.pinval
-        print "In class:"+self.__class__.__name__+" dev:"+dev+" cmd:"+cmd+"pin:"+pin+"val:"val
-        endpointDet=getEndpointDet(dev)
-        devtype=endpointDet[0]
-        address=endpointDet[1]
-        addr=endpointDet[2]
-        print "devtype:"+devtype+ " address:"+address
-        ret=cmdjrnlWrite(devtype,address,addr,cmd,dev,pin,val)
-        if ret:
-            return_obj.setTs(ret)
-        else:
-            return_obj.setResult(False)
-        return json.dumps(return_obj.getReturnObject())
+        try:
+            return_obj=returnObject()
+            user_data=web.input()
+            cmd=user_data.pincmd
+            dev=user_data.dev
+            pin=user_data.pin
+            val=user_data.pinval
+            print "In class:"+self.__class__.__name__+" dev:"+dev+" cmd:"+cmd+"pin:"+pin+"val:"+val
+            endpointDet=getEndpointDet(dev)
+            devtype=endpointDet[0]
+            address=endpointDet[1]
+            addr=endpointDet[2]
+            print "devtype:"+devtype+ " address:"+address
+            ret=cmdjrnlWrite(devtype,address,addr,cmd,dev,pin,val)
+            if ret:
+                return_obj.setTs(ret)
+            else:
+                return_obj.setResult(False)
+            return json.dumps(return_obj.getReturnObject())
+        except AttributeError:
+            print "Attribute Error in dev_drv"
+        except: 
+            print "Unexpected error:", sys.exc_info()[0]
+            raise
 
 class digital_read:
     def GET(self):
