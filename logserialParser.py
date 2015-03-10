@@ -22,28 +22,30 @@ def processPending():
             addr=rowToProcess[1]
             try:
                 cmdDict=convertToJsonStr(rowToProcess[2])
-            except:
-                print "convertToJsonStr error:", sys.exc_info()
-            msgType=cmdDict["tp"]
-            msgTs=cmdDict["tm"]
-            p1=cmdDict["p1"]
-            v1=cmdDict["v1"]
-            p2=cmdDict["p2"]
-            v2=cmdDict["v2"]
-            if (msgType=='err'):
-                result = handleERR(ts,addr,p1)
-            elif (msgType=='info'):
-                result = handleMSG(ts,addr,p1,v1,p2,v2)
-            elif (msgType=='rep'):
-                msgTs=str2date(msgTs)
-                result = handleREP(ts,addr,msgTs,p1,v1,p2,v2)
-            else:
-                result = False
-            if result:
-                procStat='C'
-            else:
-                procStat='E'
-            updateStatus(ts,addr,procStat)
+                msgType=cmdDict["tp"]
+                msgTs=cmdDict["tm"]
+                p1=cmdDict["p1"]
+                v1=cmdDict["v1"]
+                p2=cmdDict["p2"]
+                v2=cmdDict["v2"]
+                if (msgType=='err'):
+                    result = handleERR(ts,addr,p1)
+                elif (msgType=='info'):
+                    result = handleMSG(ts,addr,p1,v1,p2,v2)
+                elif (msgType=='rep'):
+                    msgTs=str2date(msgTs)
+                    result = handleREP(ts,addr,msgTs,p1,v1,p2,v2)
+                else:
+                    result = False
+                if result:
+                    procStat='C'
+                else:
+                    procStat='E'
+                updateStatus(ts,addr,procStat)
+            except ValueError:
+                print "convertToJsonStr value error"
+                updateStatus(ts,addr,'e')
+                
 
 def convertToJsonStr(rawStr):
     rawJsonStr=rawStr.encode('ascii', 'ignore')
