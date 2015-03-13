@@ -144,7 +144,7 @@ def setPINvalue(endpoint,pin,stat=None,vname=None,vval=None):
 def updateMenu(endpoint,pin,state,vname,vval):
     print 'In updateMenu',(endpoint,pin,state,vname,vval)
     if(vval):
-        query = '''update menu set vval=%s where endpoint = '%s' and pin=%s''' % (vval,endpoint,pin)
+        query = '''update menu set vval='%s' where endpoint = '%s' and pin=%s''' % (vval,endpoint,pin)
     else:
         query = '''update menu set state=%s where endpoint = '%s' and pin=%s''' % (state,endpoint,pin)
     params = ''
